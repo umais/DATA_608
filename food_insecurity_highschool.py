@@ -132,4 +132,4 @@ plt.close(fig_insights)
 # ----------------- Save and Close PDF -----------------
 pdf.close()
 
-print("✅ Food_Security_Report.pdf successfully created!")
+print("Food_Security_Report.pdf successfully created!")
