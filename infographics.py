@@ -15,15 +15,20 @@ use_case = {
     "flow": ["Survey Purpose", "Study Preferences", "Resource Usage", "Challenges Faced"]
 }
 
-# Create a pie chart for study preferences
+# Create a horizontal bar chart for study preferences
 study_methods = ['Night Study', 'Day Study', 'Both']
 percentages = [72, 20, 8]
 
-plt.figure(figsize=(5,5))
-plt.pie(percentages, labels=study_methods, autopct='%1.1f%%', startangle=140,
-        colors=["#66b3ff", "#99ff99", "#ffcc99"])
+plt.figure(figsize=(6, 4))
+colors = ["#66b3ff", "#99ff99", "#ffcc99"]
+plt.barh(study_methods, percentages, color=colors)
+plt.xlabel('Percentage')
 plt.title('When Students Prefer to Study')
-plt.savefig('study_pie_chart.png', bbox_inches='tight')
+plt.xlim(0, 100)
+for i, v in enumerate(percentages):
+    plt.text(v + 1, i, f"{v}%", va='center', fontweight='bold')
+plt.tight_layout()
+plt.savefig('study_bar_chart.png', bbox_inches='tight')
 plt.close()
 
 # Load fonts
@@ -58,10 +63,10 @@ draw.text((50, 30), use_case["title"], fill="black", font=font_title)
 # Introduction (wrapped)
 y_pos = draw_wrapped_text(draw, use_case["introduction"], (50, 100), font_subtitle, 700)
 
-# Insert pie chart
-chart = Image.open('study_pie_chart.png').resize((400, 400))
-infographic.paste(chart, (200, y_pos + 20))
-y_pos += 440
+# Insert bar chart
+chart = Image.open('study_bar_chart.png').resize((600, 300))
+infographic.paste(chart, (100, y_pos + 20))
+y_pos += 340
 
 # Key findings
 draw.text((50, y_pos), "Key Findings:", fill="black", font=font_subtitle)
