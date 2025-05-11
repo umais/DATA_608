@@ -1,40 +1,43 @@
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
+import plotly.express as px
+import os
 
-# Create the dataset
-data = {
-    "Employee ID": list(range(1, 21)),
-    "Pre-Training": [65, 70, 55, 68, 77, 62, 55, 80, 78, 69, 60, 67, 71, 55, 73, 64, 68, 75, 66, 70],
-    "Post-Training": [72, 85, 60, 75, 80, 65, 50, 90, 82, 74, 62, 70, 75, 58, 78, 70, 72, 77, 68, 76]
-}
+# Sample dataset from plotly (can be replaced with any time series data)
+url = 'https://raw.githubusercontent.com/plotly/datasets/master/2011_us_ag_exports.csv'
+data = pd.read_csv(url)
 
-df = pd.DataFrame(data)
+# Simulating a time series dataset by expanding the dataset with dummy months
+import numpy as np
 
-# Set up the plot
-plt.figure(figsize=(14, 7))
-sns.set_style("whitegrid")
+states = data['state'].unique()
+months = pd.date_range(start="2021-01-01", periods=12, freq='M').strftime('%Y-%m')
 
-# Melt the DataFrame for seaborn compatibility
-df_melted = df.melt(id_vars="Employee ID", value_vars=["Pre-Training", "Post-Training"],
-                    var_name="Training Stage", value_name="Productivity Score")
+df_list = []
+for month in months:
+    temp = data.copy()
+    temp['month'] = month
+    temp['unemployment_rate'] = np.random.uniform(3, 12, len(temp))  # Random unemployment rate
+    df_list.append(temp)
 
-# Create line plot
-sns.lineplot(data=df_melted, x="Employee ID", y="Productivity Score", hue="Training Stage", marker="o", linewidth=2.5)
+df = pd.concat(df_list)
 
-# Highlight declines with red lines
-for i, (pre, post) in enumerate(zip(df["Pre-Training"], df["Post-Training"])):
-    if post < pre:
-        plt.plot([i+1, i+1], [pre, post], color='red', linewidth=3)
+# Create interactive line plot
+fig = px.line(df,
+              x='month',
+              y='unemployment_rate',
+              color='state',
+              line_group='state',
+              hover_name='state',
+              title='Monthly Unemployment Rate by State',
+              labels={'month': 'Month', 'unemployment_rate': 'Unemployment Rate (%)'})
 
-# Titles and labels
-plt.title("Employee Productivity Before and After Training", fontsize=18, weight='bold')
-plt.xlabel("Employee ID", fontsize=12)
-plt.ylabel("Productivity Score", fontsize=12)
-plt.xticks(df["Employee ID"])
-plt.legend(title="Training Stage")
-plt.tight_layout()
+fig.update_layout(
+    xaxis=dict(rangeslider_visible=True),
+    legend_title_text='State'
+)
 
-# Save the plot as a PNG
-plt.savefig("training_productivity_visual.png", dpi=300)
-plt.show()
+# Save the interactive chart as an HTML file in docs/index.html
+os.makedirs("docs", exist_ok=True)
+fig.write_html("docs/visualization.html")
+
+print("✅ Visualization created: docs/visualization.html")
