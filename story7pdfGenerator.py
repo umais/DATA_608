@@ -54,26 +54,37 @@ pdf.ln(10)
 
 pdf.set_font("Arial", "", 12)
 paragraph1 = (
-    "The U.S. energy production map shows clear regional distinctions. States in the central and western U.S., "
-    "such as Texas, Oklahoma, and Wyoming, stand out as high energy producers, marked in green. "
-    "These states not only generate significant amounts of energy but also act as net exporters. "
-    "In contrast, states along the East and West Coasts, including California, New York, and most of New England, "
-    "are marked as low producers and are likely dependent on imported energy, indicated by the red shading."
+    "The U.S. energy production map reveals distinct regional patterns that highlight the nation's energy landscape. "
+    "The central and western states, particularly Texas, Wyoming, and North Dakota, emerge as high energy producers "
+    "(shown in blue), functioning as net exporters with robust production capabilities across multiple energy sources. "
+    "Texas stands out with its massive production of 25.3 trillion GWh, primarily from natural gas and wind. "
+    "In contrast, coastal states including California, New York, and most of New England (shown in red) demonstrate "
+    "lower production levels relative to their consumption, making them dependent on energy imports from other regions."
 )
 
 paragraph2 = (
-    "Hydropower appears to be significant in the Pacific Northwest (e.g., Washington), while natural gas and wind "
-    "dominate in high-production states like Texas. The map also categorizes states by their vulnerability scores, "
-    "with lower scores reflecting stronger energy resilience. Texas, for example, shows a vulnerability score of 0, "
-    "suggesting a diverse and robust energy profile with minimal supply risk."
+    "The energy mix varies significantly by region, reflecting each area's natural resources and policy priorities. "
+    "Coal remains dominant in Wyoming and West Virginia, while natural gas leads in Texas and Pennsylvania. "
+    "Nuclear energy provides significant baseload power in states like Illinois and Pennsylvania, while wind energy "
+    "has gained prominence in the Great Plains states. The vulnerability scores indicate each state's exposure to "
+    "potential energy disruptions, with higher scores (closer to 1.0) suggesting greater dependency on external sources "
+    "and less diversified energy portfolios."
 )
 
 vulnerability_paragraph = (
-    "The vulnerability score ranges from 0.0 to 1.0, where lower values indicate stronger energy resilience. "
-    "A score of 0.0, as seen in Texas, represents a state with highly diversified energy sources and minimal dependency "
-    "on imports. In contrast, states shaded in red with higher scores may face challenges such as reliance on a single "
-    "energy type or exposure to supply disruptions. Monitoring and addressing these vulnerabilities is essential "
-    "for national energy security."
+    "The vulnerability score (ranging from 0.0 to 1.0) serves as a critical indicator of energy security, with lower "
+    "values representing stronger resilience. States like Texas and Wyoming show minimal vulnerability (scores near 0), "
+    "indicating self-sufficiency and export capacity. Meanwhile, states with higher scores face greater exposure to "
+    "supply disruptions, price volatility, and transmission constraints. These regional disparities highlight the need "
+    "for robust interstate transmission infrastructure and strategic energy policy to enhance national energy security "
+    "while supporting the ongoing transition to cleaner energy sources."
+)
+
+data_source = (
+    "Data Source: U.S. Energy Information Administration (EIA) State Energy Data System (SEDS), "
+    "which provides comprehensive state energy statistics. The data includes production and consumption "
+    "figures for all energy sources, allowing for detailed analysis of energy flows and dependencies "
+    "between states. More information available at: https://www.eia.gov/state/seds/"
 )
 
 pdf.multi_cell(0, 10, paragraph1)
@@ -81,6 +92,9 @@ pdf.ln(5)
 pdf.multi_cell(0, 10, paragraph2)
 pdf.ln(5)
 pdf.multi_cell(0, 10, vulnerability_paragraph)
+pdf.ln(10)
+pdf.set_font("Arial", "I", 10)  # Italics for data source
+pdf.multi_cell(0, 10, data_source)
 pdf.ln(10)
 pdf.set_font("Arial", "B", 12)
 pdf.cell(0, 10, "View the interactive map here:", ln=True)

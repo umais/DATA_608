@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import geopandas as gpd
 import folium
-from folium.features import DivIcon, GeoJsonTooltip, Popup
+from folium.features import DivIcon, GeoJsonTooltip
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import base64
@@ -34,32 +34,30 @@ energy_df = energy_df[energy_df['Energy_Type'].notna()]
 energy_df['abbreviation'] = energy_df['State'].str.strip().str.upper()
 energy_df['2022'] = energy_df['2022'].astype(str).str.replace(',', '', regex=False).astype(float)
 
-# === Aggregate
+# === Aggregate ===
 energy_breakdown = energy_df.groupby(['abbreviation', 'Energy_Type']).agg({'2022': 'sum'}).reset_index()
 energy_pivot = energy_breakdown.pivot(index='abbreviation', columns='Energy_Type', values='2022').reset_index().fillna(0)
 energy_pivot['total_production'] = energy_pivot[['Coal', 'Natural Gas', 'Nuclear', 'Wind', 'Solar']].sum(axis=1)
 
-# === Merge with consumption
+# === Merge with consumption ===
 state_data = pd.merge(consumption_2022, energy_pivot, on='abbreviation', how='left')
 state_data['vulnerability_score'] = round(
     (state_data['consumption'] - state_data['total_production']) / state_data['consumption'], 2)
 state_data['vulnerability_score'] = state_data['vulnerability_score'].clip(lower=0).fillna(0)
 state_data['prod_cons_ratio'] = state_data['total_production'] / state_data['consumption']
 
-def category(ratio):
-    if ratio >= 1.2:
-        return 'High Producer'
-    elif ratio >= 0.8:
-        return 'Medium'
-    else:
-        return 'Low Producer'
-
-state_data['category'] = state_data['prod_cons_ratio'].apply(category)
+# Category
+state_data['category'] = state_data['prod_cons_ratio'].apply(lambda r: 'High Producer' if r >= 1.2 else ('Medium' if r >= 0.8 else 'Low Producer'))
 state_data['status'] = state_data.apply(
     lambda row: 'Exporter' if row['total_production'] > row['consumption']
     else ('Balanced' if abs(row['total_production'] - row['consumption']) < 0.05 * row['consumption']
     else 'Importer'), axis=1)
 
+# Percentage Shares
+for e_type in ['Coal', 'Natural Gas', 'Nuclear', 'Wind', 'Solar']:
+    state_data[f'{e_type}_pct'] = round((state_data[e_type] / state_data['total_production']) * 100, 1).fillna(0)
+
+# Abbreviation Map
 abbreviation_map = {name: abbr for abbr, name in {
     'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
     'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
@@ -74,37 +72,58 @@ abbreviation_map = {name: abbr for abbr, name in {
     'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'}.items()}
 us_states['abbreviation'] = us_states['name'].map(abbreviation_map)
 
-# === Merge GeoDataFrame
+# === Merge ===
 merged = us_states.merge(state_data, on='abbreviation', how='left')
 merged['centroid'] = merged.geometry.centroid
 merged['longitude'] = merged['centroid'].x
 merged['latitude'] = merged['centroid'].y
 merged = merged.drop(columns=['centroid'])
 
-# === Map
+# === Map ===
 m = folium.Map(location=[37.8, -96], zoom_start=4)
 
+# Add title
+title_html = '''
+<div style="position: fixed; 
+     top: 10px; left: 50%; transform: translateX(-50%); 
+     width: 600px; height: 40px; 
+     background-color: white; border-radius: 5px; 
+     border: 2px solid grey; z-index:9999; 
+     font-size: 16px; font-weight: bold; 
+     padding: 10px; text-align: center;">
+     U.S. Energy Production and Vulnerability Analysis
+</div>
+'''
+m.get_root().html.add_child(folium.Element(title_html))
+
+# Colorblind-safe color palette (Blue-Orange)
 color_map = {
-    'High Producer': '#1b7837',
-    'Medium': '#fdae61',
-    'Low Producer': '#d73027'
+    'High Producer': '#2c7bb6',  # Blue
+    'Medium': '#fdae61',         # Orange
+    'Low Producer': '#d7191c'    # Red (but distinct from green)
 }
 
-def style_function(feature):
-    return {
-        'fillColor': color_map.get(feature['properties']['category'], 'gray'),
-        'color': 'black',
-        'weight': 1,
-        'fillOpacity': 0.6,
-    }
+# Style
+style_function = lambda feature: {
+    'fillColor': color_map.get(feature['properties']['category'], 'gray'),
+    'color': 'black',
+    'weight': 1,
+    'fillOpacity': 0.7,
+}
 
+# Bar chart with % labels
 def create_bar_chart(row):
     labels = ['Coal', 'Natural Gas', 'Nuclear', 'Wind', 'Solar']
     values = [row.get(e, 0) for e in labels]
+    pct_values = [row.get(f'{e}_pct', 0) for e in labels]
     colors = ['#636363', '#3182bd', '#fd8d3c', '#31a354', '#ffd92f']
-    
+
     fig, ax = plt.subplots(figsize=(4, 3))
-    ax.bar(labels, values, color=colors)
+    bars = ax.bar(labels, values, color=colors)
+    for bar, pct in zip(bars, pct_values):
+        height = bar.get_height()
+        ax.annotate(f'{pct}%', xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
     ax.set_title(f"{row['abbreviation']} Energy Production (GWh)")
     plt.xticks(rotation=45)
     plt.tight_layout()
@@ -114,7 +133,7 @@ def create_bar_chart(row):
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
-# Add GeoJson with tooltip and click popups
+# Popups
 def generate_popup_html(row):
     chart = create_bar_chart(row)
     html = f"""
@@ -124,13 +143,16 @@ def generate_popup_html(row):
         <b>Consumption:</b> {row['consumption']:.0f} GWh<br>
         <b>Status:</b> {row['status']}<br>
         <b>Vulnerability Score:</b> {row['vulnerability_score']}<br><hr>
+        <b>Energy Mix (% of total production):</b><br>
+        Coal: {row['Coal_pct']}%, Natural Gas: {row['Natural Gas_pct']}%, Nuclear: {row['Nuclear_pct']}%,<br>
+        Wind: {row['Wind_pct']}%, Solar: {row['Solar_pct']}%<br><br>
         <img src="data:image/png;base64,{chart}" width="380">
     </div>
     """
     return html
 
 for _, row in merged.iterrows():
-    popup = folium.Popup(folium.IFrame(generate_popup_html(row), width=420, height=360), max_width=450)
+    popup = folium.Popup(folium.IFrame(generate_popup_html(row), width=420, height=450), max_width=450)
     folium.Marker(
         location=[row['latitude'], row['longitude']],
         popup=popup,
@@ -160,14 +182,14 @@ folium.GeoJson(
     )
 ).add_to(m)
 
-# === Legend
+# Legend (updated color labels)
 legend_html = '''
 <div style="position: fixed; top: 50px; right: 50px; width: 250px; height: 300px; 
      background-color: white; border:2px solid grey; z-index:9999; font-size:14px; padding: 20px;">
 <b>Production-Consumption</b><br>
- &nbsp;<i style="background:#1b7837;color:white;padding:2px 5px;">&nbsp;</i> High Producer<br>
+ &nbsp;<i style="background:#2c7bb6;padding:2px 5px;">&nbsp;</i> High Producer<br>
  &nbsp;<i style="background:#fdae61;padding:2px 5px;">&nbsp;</i> Medium<br>
- &nbsp;<i style="background:#d73027;padding:2px 5px;">&nbsp;</i> Low Producer<br>
+ &nbsp;<i style="background:#d7191c;padding:2px 5px;">&nbsp;</i> Low Producer<br>
  <hr>
 <b>Vulnerability Score</b><br>
  0 → 0.5 (Low Risk)<br>
@@ -179,7 +201,7 @@ legend_html = '''
 '''
 m.get_root().html.add_child(folium.Element(legend_html))
 
-# === Save
+# Save
 os.makedirs("docs", exist_ok=True)
 m.save("docs/energy_production_map.html")
-print("✅ Final map saved to docs/energy_production_map.html")
+print("✅ Revised polished map saved to docs/energy_production_map.html")
